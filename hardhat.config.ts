@@ -7,7 +7,7 @@ import '@nomiclabs/hardhat-etherscan'
 import 'solidity-coverage'
 require('dotenv').config()
 import * as fs from 'fs'
-
+import "@nomiclabs/hardhat-etherscan";
 const { API_URL, PRIVATE_KEY } = process.env;
 // task action function receives the Hardhat Runtime Environment as second argument
 

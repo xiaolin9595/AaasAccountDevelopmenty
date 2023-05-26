@@ -16,7 +16,7 @@ contract StructSet {
     mapping (bytes32 => bool)    private _exist;
 
     function _add(bytes32 digest, Account memory accList) internal {
-        require(!_exist[digest], "Account data exist.");
+        //require(!_exist[digest], "Account data exist.");  //要求一个FIDO 公钥一个账户合约
         _accountList[digest] = accList;
         _exist[digest] = true;
     }

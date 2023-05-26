@@ -340,8 +340,8 @@ contract EntryPoint is IEntryPoint, StakeManager, NonceManager, ReentrancyGuard 
     // create the sender's contract if needed.
     function _createSenderIfNeeded(uint256 opIndex, UserOpInfo memory opInfo, bytes calldata initCode) internal {
         if (initCode.length != 0) {
-        (bool exit ,) =accountList.Get( opInfo.mUserOp.fidoPubkey);
-        if (!exit){
+       // (bool exit ,) =accountList.Get( opInfo.mUserOp.fidoPubkey);
+     //   if (!exit){
             address sender = opInfo.mUserOp.sender;
             if (sender.code.length != 0) revert FailedOp(opIndex, "AA10 sender already constructed");
             address sender1 = senderCreator.createSender{gas : opInfo.mUserOp.verificationGasLimit}(initCode);
@@ -352,7 +352,7 @@ contract EntryPoint is IEntryPoint, StakeManager, NonceManager, ReentrancyGuard 
             accountList.Add(opInfo.mUserOp.fidoPubkey,sender);
             emit AccountDeployed(opInfo.userOpHash, sender, factory, opInfo.mUserOp.paymaster);
 
-        }
+      //  }
     }
     }
 
