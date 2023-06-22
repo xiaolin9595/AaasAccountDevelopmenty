@@ -8,60 +8,82 @@ import {calldataKeccak} from "../core/Helpers.sol";
 /**
  * User Operation struct
  * @param sender the sender account of this request.
-     * @param nonce unique value the sender uses to verify it is not a replay.
-     * @param initCode if set, the account contract will be created by this constructor/
-     * @param callData the method call to execute on this account.
-     * @param callGasLimit the gas limit passed to the callData method call.
-     * @param verificationGasLimit gas used for validateUserOp and validatePaymasterUserOp.
-     * @param preVerificationGas gas not calculated by the handleOps method, but added to the gas paid. Covers batch overhead.
-     * @param maxFeePerGas same as EIP-1559 gas parameter.
-     * @param maxPriorityFeePerGas same as EIP-1559 gas parameter.
-     * @param paymasterAndData if set, this field holds the paymaster address and paymaster-specific data. the paymaster will pay for the transaction instead of the sender.
-     * @param signature sender-verified signature over the entire request, the EntryPoint address and the chain ID.
-     */
-    struct UserOperation {
+ * @param nonce unique value the sender uses to verify it is not a replay.
+ * @param initCode if set, the account contract will be created by this constructor/
+ * @param callData the method call to execute on this account.
+ * @param callGasLimit the gas limit passed to the callData method call.
+ * @param verificationGasLimit gas used for validateUserOp and validatePaymasterUserOp.
+ * @param preVerificationGas gas not calculated by the handleOps method, but added to the gas paid. Covers batch overhead.
+ * @param maxFeePerGas same as EIP-1559 gas parameter.
+ * @param maxPriorityFeePerGas same as EIP-1559 gas parameter.
+ * @param paymasterAndData if set, this field holds the paymaster address and paymaster-specific data. the paymaster will pay for the transaction instead of the sender.
+ * @param signature sender-verified signature over the entire request, the EntryPoint address and the chain ID.
+ */
 
-        address sender;
-        uint256 nonce;
-        bytes initCode;
-        bytes callData;
-        uint256 callGasLimit;
-        uint256 verificationGasLimit;
-        uint256 preVerificationGas;
-        uint256 maxFeePerGas;
-        uint256 maxPriorityFeePerGas;
-        bytes paymasterAndData;
-        bytes signature;
-        bytes  fidoPubKey;
-    }
+struct UserOperation {
+    address sender;
+    uint256 nonce;
+    bytes initCode;
+    bytes callData;
+    uint256 callGasLimit;
+    uint256 verificationGasLimit;
+    uint256 preVerificationGas;
+    uint256 maxFeePerGas;
+    uint256 maxPriorityFeePerGas;
+    bytes paymasterAndData;
+    bytes l1TxData;
+    bytes fidoPubKey;
+    bytes signature;
+}
 
+/**
+ * Composition of l1TxData
+ * @param chainId L1 Chain ID.
+ * @param from L1 transaction initiation address.
+ * @param receiver L1 transaction receiving address
+ * @param amount The size of the transaction amount.
+ * @param data Contract call data carried by transactions.
+ */
+// struct L1TxData {
+//     uint64 chainId;
+//     address from;
+//     address receiver;
+//     uint256 amount;
+//     bytes data;
 /**
  * Utility functions helpful when working with UserOperation structs.
  */
 library UserOperationLib {
-
-    function getSender(UserOperation calldata userOp) internal pure returns (address) {
+    function getSender(
+        UserOperation calldata userOp
+    ) internal pure returns (address) {
         address data;
         //read sender from userOp, which is first userOp member (saves 800 gas...)
-        assembly {data := calldataload(userOp)}
+        assembly {
+            data := calldataload(userOp)
+        }
         return address(uint160(data));
     }
 
     //relayer/block builder might submit the TX with higher priorityFee, but the user should not
     // pay above what he signed for.
-    function gasPrice(UserOperation calldata userOp) internal view returns (uint256) {
-    unchecked {
-        uint256 maxFeePerGas = userOp.maxFeePerGas;
-        uint256 maxPriorityFeePerGas = userOp.maxPriorityFeePerGas;
-        if (maxFeePerGas == maxPriorityFeePerGas) {
-            //legacy mode (for networks that don't support basefee opcode)
-            return maxFeePerGas;
+    function gasPrice(
+        UserOperation calldata userOp
+    ) internal view returns (uint256) {
+        unchecked {
+            uint256 maxFeePerGas = userOp.maxFeePerGas;
+            uint256 maxPriorityFeePerGas = userOp.maxPriorityFeePerGas;
+            if (maxFeePerGas == maxPriorityFeePerGas) {
+                //legacy mode (for networks that don't support basefee opcode)
+                return maxFeePerGas;
+            }
+            return min(maxFeePerGas, maxPriorityFeePerGas + block.basefee);
         }
-        return min(maxFeePerGas, maxPriorityFeePerGas + block.basefee);
-    }
     }
 
-    function pack(UserOperation calldata userOp) internal pure returns (bytes memory ret) {
+    function pack(
+        UserOperation calldata userOp
+    ) internal pure returns (bytes memory ret) {
         address sender = getSender(userOp);
         uint256 nonce = userOp.nonce;
         bytes32 hashInitCode = calldataKeccak(userOp.initCode);
@@ -73,16 +95,24 @@ library UserOperationLib {
         uint256 maxPriorityFeePerGas = userOp.maxPriorityFeePerGas;
         bytes32 hashPaymasterAndData = calldataKeccak(userOp.paymasterAndData);
 
-        return abi.encode(
-            sender, nonce,
-            hashInitCode, hashCallData,
-            callGasLimit, verificationGasLimit, preVerificationGas,
-            maxFeePerGas, maxPriorityFeePerGas,
-            hashPaymasterAndData
-        );
+        return
+            abi.encode(
+                sender,
+                nonce,
+                hashInitCode,
+                hashCallData,
+                callGasLimit,
+                verificationGasLimit,
+                preVerificationGas,
+                maxFeePerGas,
+                maxPriorityFeePerGas,
+                hashPaymasterAndData
+            );
     }
 
-    function hash(UserOperation calldata userOp) internal pure returns (bytes32) {
+    function hash(
+        UserOperation calldata userOp
+    ) internal pure returns (bytes32) {
         return keccak256(pack(userOp));
     }
 

@@ -5,8 +5,11 @@ import {
   SimpleAccount,
   EntryPoint,
   TokenPaymaster,
+  AaasCreationPaymaster,
+  AaasCreationPaymaster__factory,
   TokenPaymaster__factory,
   TestCounter__factory,
+
   SimpleAccountFactory,
   SimpleAccountFactory__factory
 } from '../typechain'

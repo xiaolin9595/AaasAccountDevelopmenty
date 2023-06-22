@@ -38,7 +38,7 @@ function getNetwork (name: string): { url: string, accounts: { mnemonic: string 
 const optimizedComilerSettings = {
   version: '0.8.17',
   settings: {
-    optimizer: { enabled: true, runs: 1000000 },
+    optimizer: { enabled: true, runs: 20000},
     viaIR: true
   }
 }
@@ -51,7 +51,7 @@ const config: HardhatUserConfig = {
     compilers: [{
       version: '0.8.15',
       settings: {
-        optimizer: { enabled: true, runs: 10000000 }
+        optimizer: { enabled: true, runs: 200 }
       }
     }],
     overrides: {

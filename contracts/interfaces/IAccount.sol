@@ -4,7 +4,6 @@ pragma solidity ^0.8.12;
 import "./UserOperation.sol";
 
 interface IAccount {
-
     /**
      * Validate user's signature and nonce
      * the entryPoint will make the call to the recipient only if this validation call returns successfully.
@@ -29,8 +28,25 @@ interface IAccount {
      *      If an account doesn't use time-range, it is enough to return SIG_VALIDATION_FAILED value (1) for signature failure.
      *      Note that the validation code cannot use block.timestamp (or block.number) directly.
      */
-    
-    function validateUserOp(UserOperation calldata userOp, bytes32 userOpHash, uint256 missingAccountFunds)
-    external returns (uint256 validationData);
-    function updateTxState(address _from,uint64 _seqNum,uint _state)external;
+
+    function validateUserOp(
+        UserOperation calldata userOp,
+        bytes32 userOpHash,
+        uint256 missingAccountFunds
+    ) external returns (uint256 validationData);
+
+    function updateTxState(
+        address _from,
+        uint64 _seqNum,
+        uint _state,
+        bytes memory _txHash
+    ) external;
+
+    function addL1txInfo(
+        uint64 _chainId,
+        address _from,
+        address _receiver,
+        uint256 _value,
+        bytes memory data
+    ) external returns (uint64);
 }

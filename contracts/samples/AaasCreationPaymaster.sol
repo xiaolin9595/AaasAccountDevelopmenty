@@ -6,6 +6,7 @@ pragma solidity ^0.8.12;
 
 import "../core/BasePaymaster.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import "../interfaces/IAccountList.sol";
 
 /**
  * A sample paymaster that uses external service to decide whether to pay for the UserOp.
@@ -17,24 +18,23 @@ import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
  * - the account checks a signature to prove identity and account ownership.
  */
 
-contract VerifyingPaymaster is BasePaymaster {
+contract AaasCreationPaymaster is BasePaymaster {
     using ECDSA for bytes32;
     using UserOperationLib for UserOperation;
 
-    address public immutable verifyingSigner;
+    uint256 public constant maxRequiredPreFund = 0.005 ether;
+
+    // IAccountList private immutable _accountList;
 
     uint256 private constant VALID_TIMESTAMP_OFFSET = 20;
 
-    uint256 private constant SIGNATURE_OFFSET = 84;
+    uint256 private constant FINAL_OFFSET = 84;
 
-    constructor(
-        IEntryPoint _entryPoint,
-        address _verifyingSigner
-    ) BasePaymaster(_entryPoint) {
-        verifyingSigner = _verifyingSigner;
+    constructor(IEntryPoint _entryPoint) BasePaymaster(_entryPoint) {
+        _entryPoint;
     }
 
-    mapping(address => uint256) public senderNonce;
+    mapping(address => bool) public senderVerify;
 
     function pack(
         UserOperation calldata userOp
@@ -52,6 +52,10 @@ contract VerifyingPaymaster is BasePaymaster {
             mstore(ret, len)
             calldatacopy(add(ret, 32), ofs, len)
         }
+    }
+
+    function getentryPoint() public view virtual returns (IEntryPoint) {
+        return entryPoint;
     }
 
     /**
@@ -74,12 +78,13 @@ contract VerifyingPaymaster is BasePaymaster {
                     pack(userOp),
                     block.chainid,
                     address(this),
-                    senderNonce[userOp.getSender()],
                     validUntil,
                     validAfter
                 )
             );
     }
+
+    error Failed(bool a);
 
     /**
      * verify our external signer signed this request.
@@ -90,48 +95,38 @@ contract VerifyingPaymaster is BasePaymaster {
      */
     function _validatePaymasterUserOp(
         UserOperation calldata userOp,
-        bytes32 /*userOpHash*/,
+        bytes32 userOpHash,
         uint256 requiredPreFund
     ) internal override returns (bytes memory context, uint256 validationData) {
-        (requiredPreFund);
-
-        (
-            uint48 validUntil,
-            uint48 validAfter,
-            bytes calldata signature
-        ) = parsePaymasterAndData(userOp.paymasterAndData);
-        //ECDSA library supports both 64 and 65-byte long signatures.
-        // we only "require" it here so that the revert reason on invalid signature will be of "VerifyingPaymaster", and not "ECDSA"
-        require(
-            signature.length == 64 || signature.length == 65,
-            "VerifyingPaymaster: invalid signature length in paymasterAndData"
+        (uint48 validUntil, uint48 validAfter) = parsePaymasterAndData(
+            userOp.paymasterAndData
         );
-        bytes32 hash = ECDSA.toEthSignedMessageHash(
-            getHash(userOp, validUntil, validAfter)
-        );
-        senderNonce[userOp.getSender()]++;
+        //revert Failed(true) ;
+        if (
+            userOpHash ==
+            keccak256(
+                abi.encode(
+                    userOp.hash(),
+                    address(getentryPoint()),
+                    block.chainid
+                )
+            )
+        ) {
+            //if (requiredPreFund <= maxRequiredPreFund) {
+                return ("", _packValidationData(false, validUntil, validAfter));
+           // }
 
-        //don't revert on signature failure: return SIG_VALIDATION_FAILED
-        if (verifyingSigner != ECDSA.recover(hash, signature)) {
-            return ("", _packValidationData(true, validUntil, validAfter));
+           // return ("", _packValidationData(true, validUntil, validAfter));
         }
-
-        //no need for other on-chain validation: entire UserOp should have been checked
-        // by the external service prior to signing it.
-        return ("", _packValidationData(false, validUntil, validAfter));
     }
 
     function parsePaymasterAndData(
         bytes calldata paymasterAndData
-    )
-        public
-        pure
-        returns (uint48 validUntil, uint48 validAfter, bytes calldata signature)
-    {
+    ) public pure returns (uint48 validUntil, uint48 validAfter) {
         (validUntil, validAfter) = abi.decode(
-            paymasterAndData[VALID_TIMESTAMP_OFFSET:SIGNATURE_OFFSET],
+            paymasterAndData[VALID_TIMESTAMP_OFFSET:FINAL_OFFSET],
             (uint48, uint48)
         );
-        signature = paymasterAndData[SIGNATURE_OFFSET:];
+        //signature = paymasterAndData[SIGNATURE_OFFSET:];
     }
 }
