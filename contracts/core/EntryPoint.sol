@@ -20,6 +20,7 @@ import "./NonceManager.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "./AccountList.sol";
 import "./TxState.sol";
+import "../samples/ASNAccountLogic.sol";
 
 contract EntryPoint is
     IEntryPoint,
@@ -28,10 +29,14 @@ contract EntryPoint is
     ReentrancyGuard
 {
     using UserOperationLib for UserOperation;
-
+    
     SenderCreator private immutable senderCreator = new SenderCreator();
     AccountList public immutable accountList = new AccountList(address(this));
     TxState public immutable txState = new TxState(msg.sender, this);
+    ASNAccountLogic public immutable accountLogic;
+    constructor(){
+         accountLogic=senderCreator.createAccountLogic(this,msg.sender);
+    }
     // internal value used during simulation: need to query aggregator.
     address private constant SIMULATE_FIND_AGGREGATOR = address(1);
 
@@ -55,6 +60,7 @@ contract EntryPoint is
         require(beneficiary != address(0), "AA90 invalid beneficiary");
         (bool success, ) = beneficiary.call{value: amount}("");
         require(success, "AA91 failed send to beneficiary");
+
     }
 
     /**
@@ -75,7 +81,6 @@ contract EntryPoint is
         try
             this.innerHandleOp(
                 userOp.callData,
-                userOp.l1TxData,
                 opInfo,
                 context
             )
@@ -263,13 +268,13 @@ contract EntryPoint is
     struct MemoryUserOp {
         address sender;
         uint256 nonce;
+        bytes callData;
         uint256 callGasLimit;
         uint256 verificationGasLimit;
         uint256 preVerificationGas;
         address paymaster;
         uint256 maxFeePerGas;
         uint256 maxPriorityFeePerGas;
-        bytes l1TxData;
         bytes fidoPubkey;
     }
 
@@ -287,7 +292,6 @@ contract EntryPoint is
      */
     function innerHandleOp(
         bytes memory callData,
-        bytes memory l1TxData,
         UserOpInfo memory opInfo,
         bytes calldata context
     ) external returns (uint256 actualGasCost) {
@@ -310,7 +314,9 @@ contract EntryPoint is
 
         IPaymaster.PostOpMode mode = IPaymaster.PostOpMode.opSucceeded;
         if (callData.length > 0) {
-            bool success = Exec.call(mUserOp.sender, 0, callData, callGasLimit);
+            //wait for modify
+            //bool success = Exec.call(address(accountLogic), 0, callData, callGasLimit);
+            bool success=  accountLogic.handleUserOperation(opInfo.mUserOp.sender, opInfo.mUserOp.callData);
             if (!success) {
                 bytes memory result = Exec.getReturnData(REVERT_REASON_MAX_LEN);
                 if (result.length > 0) {
@@ -324,44 +330,7 @@ contract EntryPoint is
                 mode = IPaymaster.PostOpMode.opReverted;
             }
         }
-
-        if (l1TxData.length > 0) {
-            uint64 chainId; //L1 Chain ID
-            address from; //L1 transaction initiation address.
-            uint64 seqNum; //Transaction number under the from account
-            address receiver; //L1 transaction receiving address
-            uint256 amount; //The size of the transaction amount.
-            bytes memory data; //Contract call data carried by transactions.
-            (chainId, from, receiver, amount, data) = abi.decode(
-                l1TxData,
-                (uint64, address, address, uint256, bytes)
-            );
-            try
-                IAccount(mUserOp.sender).addL1txInfo{gas: gasleft()}(
-                    chainId,
-                    from,
-                    receiver,
-                    amount,
-                    data
-                )
-            returns (uint64 _seqNum) {
-                seqNum = _seqNum;
-            } catch Error(string memory revertReason) {
-                revert FailedOp(
-                    0,
-                    string.concat("Aaas reverted: ", revertReason)
-                );
-            }
-            txState.proposeTxToL1(
-                chainId,
-                mUserOp.sender,
-                from,
-                seqNum,
-                receiver,
-                amount,
-                data
-            );
-        }
+    
 
         unchecked {
             uint256 actualGas = preGas - gasleft() + opInfo.preOpGas;
@@ -390,12 +359,12 @@ contract EntryPoint is
     ) internal pure {
         mUserOp.sender = userOp.sender;
         mUserOp.nonce = userOp.nonce;
+        mUserOp.callData = userOp.callData;
         mUserOp.callGasLimit = userOp.callGasLimit;
         mUserOp.verificationGasLimit = userOp.verificationGasLimit;
         mUserOp.preVerificationGas = userOp.preVerificationGas;
         mUserOp.maxFeePerGas = userOp.maxFeePerGas;
         mUserOp.maxPriorityFeePerGas = userOp.maxPriorityFeePerGas;
-        mUserOp.l1TxData = userOp.l1TxData;
         mUserOp.fidoPubkey = userOp.fidoPubKey;
         bytes calldata paymasterAndData = userOp.paymasterAndData;
         if (paymasterAndData.length > 0) {
@@ -613,7 +582,7 @@ contract EntryPoint is
                     : requiredPrefund - bal;
             }
             try
-                IAccount(sender).validateUserOp{
+                accountLogic.validateUserOp{
                     gas: mUserOp.verificationGasLimit
                 }(op, opInfo.userOpHash, missingAccountFunds)
             returns (uint256 _validationData) {
@@ -928,4 +897,6 @@ contract EntryPoint is
             mstore(0, number())
         }
     }
+
+
 }

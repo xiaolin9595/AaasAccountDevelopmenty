@@ -4,9 +4,14 @@ import { expect } from 'chai'
 import {
   AaasCreationPaymaster,
   EntryPoint,
-  SimpleAccount,
-  SimpleAccountFactory,
-
+  ASNAccount,
+  ASNAccount__factory,
+  ASNAccountLogic,
+  ASNAccountLogic__factory,
+  ASNAccountFactory,
+  ASNAccountFactory__factory,
+  ASNAccountLogicFactory,
+  ASNAccountLogicFactory__factory,
   TestCounter,
   TestCounter__factory,
   TestExpirePaymaster,
@@ -59,7 +64,7 @@ import { DID_DocumentStructOutput, PublicKeyStructOutput, PublicKeyStruct } from
 import { DefaultsForDID_Document, DID_Document } from './DID_Document'
 describe('EntryPoint', function () {
   let entryPoint: EntryPoint
-  let simpleAccountFactory: SimpleAccountFactory
+  let ASNAccountFactory: AccountFactory
   let aaasCreationPaymaster: AaasCreationPaymaster
   let accountOwner: Wallet
   const ethersSigner = ethers.provider.getSigner()

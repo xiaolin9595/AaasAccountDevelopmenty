@@ -31,7 +31,7 @@ struct UserOperation {
     uint256 maxFeePerGas;
     uint256 maxPriorityFeePerGas;
     bytes paymasterAndData;
-   // bytes l1TxData;
+    bytes l1TxData;
     bytes fidoPubKey;
     bytes signature;
 }

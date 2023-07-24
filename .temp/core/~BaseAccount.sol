@@ -4,9 +4,9 @@ pragma solidity ^0.8.12;
 /* solhint-disable avoid-low-level-calls */
 /* solhint-disable no-empty-blocks */
 
-import "../interfaces/IAccount.sol";
-import "../interfaces/IEntryPoint.sol";
-import "./Helpers.sol";
+import "../interfaces/~IAccount.sol";
+import "../interfaces/~IEntryPoint.sol";
+import "./~Helpers.sol";
 
 /**
  * Basic account implementation.
@@ -44,9 +44,7 @@ abstract contract BaseAccount is IAccount {
         _requireFromEntryPoint();
         validationData = _validateSignature(userOp, userOpHash);
         _validateNonce(userOp.nonce);
-        if(validationData==0){
-        _payPrefund(missingAccountFunds,userOp.sender);
-        }
+        _payPrefund(missingAccountFunds);
     }
 
     /**
@@ -99,12 +97,11 @@ abstract contract BaseAccount is IAccount {
      * @param missingAccountFunds the minimum value this method should send the entrypoint.
      *  this value MAY be zero, in case there is enough deposit, or the userOp has a paymaster.
      */
-    function _payPrefund(uint256 missingAccountFunds,address sender) internal virtual;
-    // {
-    //     if (missingAccountFunds != 0) {
-    //         (bool success,) = payable(msg.sender).call{value : missingAccountFunds, gas : type(uint256).max}("");
-    //         (success);
-    //         //ignore failure (its EntryPoint's job to verify, not account.)
-    //     }
-    // }
+    function _payPrefund(uint256 missingAccountFunds) internal virtual {
+        if (missingAccountFunds != 0) {
+            (bool success,) = payable(msg.sender).call{value : missingAccountFunds, gas : type(uint256).max}("");
+            (success);
+            //ignore failure (its EntryPoint's job to verify, not account.)
+        }
+    }
 }

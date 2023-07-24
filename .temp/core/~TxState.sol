@@ -1,13 +1,11 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.0;
-import "../interfaces/IEntryPoint.sol";
-import "../interfaces/IAccount.sol";
-import "../samples/ASNAccountLogic.sol";
+import "../interfaces/~IEntryPoint.sol";
+import "../interfaces/~IAccount.sol";
 
 contract TxState {
     address public DEPOSITOR_ACCOUNT;
     IEntryPoint private immutable _entryPoint;
-    address public  accountLogic;
     address public owner;
 
     constructor(address _owner, IEntryPoint anEntryPoint) {
@@ -17,10 +15,6 @@ contract TxState {
 
     modifier onlyOwner() {
         require(owner == msg.sender, "Ownable: caller is not the owner");
-        _;
-    }
-     modifier onlyAccountLogic() {
-        require(accountLogic == msg.sender, "Ownable: caller is not the owner");
         _;
     }
     enum State {
@@ -49,9 +43,7 @@ contract TxState {
         TransactionInfo txInfo
     );
     event updateTxStateSuccess(bytes indexed L1Txhash, uint state);
-    function setAccountLogic (address _accountLogic) public onlyOwner {
-        accountLogic = _accountLogic;
-    }
+
     /**
      * @dev Returns the entry point.
      */
@@ -103,7 +95,8 @@ contract TxState {
         uint256 _value,
         uint256 _gasLimit,
         bytes memory _data
-    ) external onlyAccountLogic {
+    ) external {
+        _requireFromEntryPoint();
         TransactionInfo memory txInfo = (
             TransactionInfo(
                 _chainId,
